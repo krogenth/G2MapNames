@@ -46,7 +46,7 @@ namespace mapFilename
                     UInt32[] pointers = new UInt32[numPointers];
 
                     Array.Clear(inBuffer, 0, 0x04);
-                    inBuffer = fileIn.ReadBytes((int)headerLength);
+                    inBuffer = fileIn.ReadBytes((int)headerLength - 4);
 
                     for (int i = 0; i < numPointers; i++)
                         pointers[i] = BitConverter.ToUInt16(inBuffer, (i * 4) + 6);
@@ -54,15 +54,15 @@ namespace mapFilename
                     for (UInt32 i = 0; i < numPointers; i++)
                         pointers[i] *= 8;
 
-                    Array.Clear(inBuffer, 0, (int)headerLength);
+                    Array.Clear(inBuffer, 0, (int)headerLength - 4);
                     inBuffer = fileIn.ReadBytes((int)sectionLength - (int)headerLength);
 
-                    for (UInt32 pointerVar = numPointers; pointerVar > 0; pointerVar--)
+                    for (UInt32 pointerVar = 0; pointerVar < numPointers - 1; pointerVar++)
                     {
                         if (((inBuffer[pointers[pointerVar] + 1] == 0x80) || (inBuffer[pointers[pointerVar] + 1] == 0x01)) && (inBuffer[pointers[pointerVar]] == 0x17))
                         {
                             UInt32 mapNameSize;
-                            if (pointerVar == numPointers)
+                            if (pointerVar >= numPointers - 1)
                                 mapNameSize = (sectionLength - headerLength) - pointers[pointerVar];
                             else
                                 mapNameSize = pointers[pointerVar + 1] - pointers[pointerVar];
@@ -71,10 +71,35 @@ namespace mapFilename
 
                             if (!mapName.Contains("to "))
                             {
-                                fileOut.Write(var);
-                                fileOut.Write(",");
-                                fileOut.Write(mapName);
-                                fileOut.Write(0x0D0A);
+                                string varWrite = var;
+                                int upper = mapName.Length, lower = 0;
+
+                                mapName.ToUpper();
+                                for (int i = 0; i < mapName.Length / 2; i++)
+                                {
+                                    if (mapName[i] == ' ' || mapName[mapName.Length - i - 1] == ' ')
+                                        continue;
+                                    if (!(mapName[i] >= 'A' && mapName[i] <= 'Z'))
+                                    {
+                                        if (!(mapName[i] == ' ' || mapName[i] == '\''))
+                                            lower = i;
+                                    }
+                                    if (!(mapName[mapName.Length - i - 1] >= 'A' && mapName[mapName.Length - i - 1] <= 'Z'))
+                                    {
+                                        if (!(mapName[mapName.Length - i - 1] == ' ' || mapName[mapName.Length - i - 1] == '\''))
+                                            upper = mapName.Length - i - 1;
+                                    }
+                                }
+
+                                lower++;
+
+                                //mapName = mapName.Substring(lower, upper - lower);
+                                //varWrite = varWrite.Substring(varWrite.Length - 8, 8);
+
+                                fileOut.Write(varWrite.Substring(varWrite.Length - 8, 8));
+                                fileOut.Write(',');
+                                fileOut.Write(mapName.Substring(lower, upper - lower));
+                                fileOut.Write('\n');
 
                                 break;
                             }
@@ -84,10 +109,7 @@ namespace mapFilename
                 }
                 fileIn.Close();
             }
-
             fileOut.Close();
-            Console.ReadLine();
-
         }
     }
 }
